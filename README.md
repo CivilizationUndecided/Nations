@@ -4,7 +4,6 @@ A multiplayer territory control game built with LÖVE (Love2D) where players com
 
 ## Features
 
-- **Multiplayer Support**: Host or join games with other players
 - **Territory Control**: Claim tiles to expand your territory
 - **Player Customization**: Choose your color and name
 - **Real-time Leaderboard**: Track your wealth and territory size
@@ -29,14 +28,6 @@ A multiplayer territory control game built with LÖVE (Love2D) where players com
 5. Each claimed tile adds to your wealth (100 points per tile)
 6. The player with the most wealth wins
 7. Press R to start a new game with a fresh map
-
-## Multiplayer
-
-The game supports multiplayer through a client-server architecture:
-- One player hosts the game (server)
-- Other players can join as clients
-- All player movements and tile claims are synchronized
-- Real-time leaderboard updates for all players
 
 ## Technical Details
 
