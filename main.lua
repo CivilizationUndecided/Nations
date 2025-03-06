@@ -20,8 +20,8 @@ local FONT_SIZE_TITLE = 32
 -- Game state
 local gameState = "joining"  -- "joining" or "playing"
 local windowWidth, windowHeight = love.graphics.getDimensions()
-local MAP_WIDTH = windowWidth * 2
-local MAP_HEIGHT = windowHeight * 2
+local MAP_WIDTH = TILE_SIZE * 256
+local MAP_HEIGHT = TILE_SIZE * 256
 local numTilesX = math.ceil(MAP_WIDTH / TILE_SIZE)
 local numTilesY = math.ceil(MAP_HEIGHT / TILE_SIZE)
 
@@ -54,7 +54,9 @@ local player = {
     colorIndex = nil,
     claimedTiles = 0,
     name = "Guest",
-    isTyping = false
+    isTyping = false,
+    wealth = 25,         -- starting wealth
+    wealthAccumulator = 0  -- accumulator for passive wealth gain
 }
 
 -- Leaderboard properties
@@ -113,11 +115,19 @@ function love.load()
     
     -- Generate tilemap
     generateTilemap()
+    ensurePlayerSpawnIsWalkable()
 end
 
 function generateTilemap()
+    -- Set a new random seed for true randomness each generation
+    love.math.setRandomSeed(os.time() + math.floor(love.timer.getTime() * 1000))
+    
     -- Define noise scale for smooth transitions
     local noiseScale = 0.1
+    
+    -- Generate random offsets for the noise function to change the map each generation
+    local offsetX = love.math.random(0, 10000)
+    local offsetY = love.math.random(0, 10000)
     
     -- Generate tiles using noise for elevation, with map borders as water
     for y = 0, numTilesY - 1 do
@@ -141,7 +151,7 @@ function generateTilemap()
             if x == 0 or y == 0 or x == numTilesX - 1 or y == numTilesY - 1 then
                 tileType = "water"
             else
-                local noiseValue = love.math.noise(x * noiseScale, y * noiseScale)
+                local noiseValue = love.math.noise(x * noiseScale + offsetX, y * noiseScale + offsetY)
                 if noiseValue < 0.3 then
                     tileType = "water"
                 elseif noiseValue < 0.5 then
@@ -179,8 +189,34 @@ function generateTilemap()
                 claimed = false,
                 claimable = claimable,
                 claimedBy = nil,
-                hovered = false
+                hovered = false,
+                type = tileType
             }
+        end
+    end
+end
+
+function ensurePlayerSpawnIsWalkable()
+    if not isPositionWalkable(player.x, player.y) then
+        local startTileX = math.floor(player.x / TILE_SIZE)
+        local startTileY = math.floor(player.y / TILE_SIZE)
+        local maxSearchRadius = 10
+        for r = 0, maxSearchRadius do
+            for dy = -r, r do
+                for dx = -r, r do
+                    local tileX = startTileX + dx
+                    local tileY = startTileY + dy
+                    if tileX >= 0 and tileX < numTilesX and tileY >= 0 and tileY < numTilesY then
+                        local candidateX = tileX * TILE_SIZE
+                        local candidateY = tileY * TILE_SIZE
+                        if isPositionWalkable(candidateX, candidateY) then
+                            player.x = candidateX
+                            player.y = candidateY
+                            return
+                        end
+                    end
+                end
+            end
         end
     end
 end
@@ -189,6 +225,12 @@ function love.update(dt)
     if gameState == "playing" then
         updatePlayerMovement(dt)
         updateTileHoverStates()
+        player.wealthAccumulator = player.wealthAccumulator + dt
+        if player.wealthAccumulator >= 1 then
+            local add = math.floor(player.wealthAccumulator)
+            player.wealth = player.wealth + add
+            player.wealthAccumulator = player.wealthAccumulator - add
+        end
     end
     
     -- Update text input cursor blink
@@ -203,21 +245,52 @@ function getCameraOffset()
     return camX, camY
 end
 
+-- NEW FUNCTION: Checks if a position (top-left of player) is walkable (not landing on a water tile)
+function isPositionWalkable(newX, newY)
+    local corners = {
+        { x = newX, y = newY },
+        { x = newX + player.width, y = newY },
+        { x = newX, y = newY + player.height },
+        { x = newX + player.width, y = newY + player.height }
+    }
+    for _, corner in ipairs(corners) do
+        local tileX = math.floor(corner.x / TILE_SIZE)
+        local tileY = math.floor(corner.y / TILE_SIZE)
+        if tileX < 0 or tileX >= numTilesX or tileY < 0 or tileY >= numTilesY then
+            return false
+        end
+        local tile = tiles[tileY][tileX]
+        if tile.type == "water" then
+            return false
+        end
+    end
+    return true
+end
+
 function updatePlayerMovement(dt)
-    -- Handle movement with WASD
+    local newX = player.x
+    local newY = player.y
+
     if love.keyboard.isDown("a") then
-        player.x = player.x - player.speed * dt
+        newX = newX - player.speed * dt
     end
     if love.keyboard.isDown("d") then
-        player.x = player.x + player.speed * dt
+        newX = newX + player.speed * dt
     end
+    if isPositionWalkable(newX, player.y) then
+        player.x = newX
+    end
+
     if love.keyboard.isDown("w") then
-        player.y = player.y - player.speed * dt
+        newY = newY - player.speed * dt
     end
     if love.keyboard.isDown("s") then
-        player.y = player.y + player.speed * dt
+        newY = newY + player.speed * dt
     end
-    
+    if isPositionWalkable(player.x, newY) then
+        player.y = newY
+    end
+
     -- Keep player in bounds
     player.x = math.max(0, math.min(MAP_WIDTH - player.width, player.x))
     player.y = math.max(0, math.min(MAP_HEIGHT - player.height, player.y))
@@ -361,12 +434,11 @@ function drawLeaderboard()
 end
 
 function updateLeaderboard()
-    -- Update or add current player to leaderboard
     local found = false
     for i, entry in ipairs(leaderboard.entries) do
         if entry.name == player.name then
             entry.score = player.claimedTiles
-            entry.wealth = player.claimedTiles * WEALTH_MULTIPLIER
+            entry.wealth = player.wealth
             entry.color = player.color
             found = true
             break
@@ -377,7 +449,7 @@ function updateLeaderboard()
         table.insert(leaderboard.entries, {
             name = player.name,
             score = player.claimedTiles,
-            wealth = player.claimedTiles * WEALTH_MULTIPLIER,
+            wealth = player.wealth,
             color = player.color
         })
     end
@@ -524,8 +596,27 @@ function love.draw()
             love.graphics.setColor(tile.color)
             love.graphics.rectangle("fill", tile.x, tile.y, tile.width, tile.height)
             if not tile.claimed then
-                love.graphics.setColor(0.3, 0.3, 0.3)
-                love.graphics.rectangle("line", tile.x, tile.y, tile.width, tile.height)
+                if tile.type == "water" then
+                    -- Top side
+                    if j > 0 and tiles[j-1][i].type ~= "water" then
+                        love.graphics.line(tile.x, tile.y, tile.x + tile.width, tile.y)
+                    end
+                    -- Right side
+                    if i < numTilesX - 1 and tiles[j][i+1].type ~= "water" then
+                        love.graphics.line(tile.x + tile.width, tile.y, tile.x + tile.width, tile.y + tile.height)
+                    end
+                    -- Bottom side
+                    if j < numTilesY - 1 and tiles[j+1][i].type ~= "water" then
+                        love.graphics.line(tile.x, tile.y + tile.height, tile.x + tile.width, tile.y + tile.height)
+                    end
+                    -- Left side
+                    if i > 0 and tiles[j][i-1].type ~= "water" then
+                        love.graphics.line(tile.x, tile.y, tile.x, tile.y + tile.height)
+                    end
+                else
+                    love.graphics.setColor(0.3, 0.3, 0.3)
+                    love.graphics.rectangle("line", tile.x, tile.y, tile.width, tile.height)
+                end
             end
         end
     end
@@ -590,6 +681,39 @@ function love.draw()
         updateLeaderboard()
         drawLeaderboard()
     end
+    -- New: Draw framerate counter
+    love.graphics.setFont(gameFonts.small)
+    love.graphics.setColor(1, 1, 1)
+    local fpsText = "FPS: " .. love.timer.getFPS()
+    -- Position with a 10-pixel margin from the left and bottom edges
+    love.graphics.print(fpsText, 10, love.graphics.getHeight() - gameFonts.small:getHeight() - 10) 
+    
+    -- New: Draw minimap in bottom right corner
+    local minimapSize = 200
+    local minimapMargin = 20
+    local minimapX = windowWidth - minimapSize - minimapMargin
+    local minimapY = windowHeight - minimapSize - minimapMargin
+    local scale = minimapSize / MAP_WIDTH
+    
+    -- Draw minimap background
+    love.graphics.setColor(1, 1, 1, 0.3)
+    love.graphics.rectangle("fill", minimapX, minimapY, minimapSize, minimapSize)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.rectangle("line", minimapX, minimapY, minimapSize, minimapSize)
+    
+    -- Draw each tile on the minimap
+    for j = 0, numTilesY - 1 do
+        for i = 0, numTilesX - 1 do
+            local tile = tiles[j][i]
+            local col = tile.claimed and tile.claimedBy or tile.color
+            love.graphics.setColor(col)
+            love.graphics.rectangle("fill", minimapX + tile.x * scale, minimapY + tile.y * scale, tile.width * scale, tile.height * scale)
+        end
+    end
+    
+    -- Draw player position on the minimap
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.rectangle("fill", minimapX + player.x * scale, minimapY + player.y * scale, player.width * scale, player.height * scale)
 end
 
 function love.mousepressed(x, y, button)
@@ -641,6 +765,28 @@ function handleJoiningStateClick(x, y)
     end
 end
 
+-- Add a helper function to check if a tile at (tileX, tileY) is adjacent to a tile claimed by the given owner
+function isTileAdjacentToOwner(tileX, tileY, ownerColor)
+    local directions = {
+        {x = -1, y = 0},
+        {x = 1, y = 0},
+        {x = 0, y = -1},
+        {x = 0, y = 1}
+    }
+    for _, dir in ipairs(directions) do
+        local nx = tileX + dir.x
+        local ny = tileY + dir.y
+        if nx >= 0 and nx < numTilesX and ny >= 0 and ny < numTilesY then
+            local neighbor = tiles[ny][nx]
+            if neighbor and neighbor.claimed and neighbor.claimedBy and neighbor.claimedBy[1] == ownerColor[1] and neighbor.claimedBy[2] == ownerColor[2] and neighbor.claimedBy[3] == ownerColor[3] then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Update handlePlayingStateClick to use the new adjacent check
 function handlePlayingStateClick(x, y)
     local camX, camY = getCameraOffset()
     local worldX = x + camX
@@ -648,13 +794,16 @@ function handlePlayingStateClick(x, y)
     local tileX = math.floor(worldX / TILE_SIZE)
     local tileY = math.floor(worldY / TILE_SIZE)
     
-    -- Check if tile exists and is claimable
     if tileY >= 0 and tileY < numTilesY and tileX >= 0 and tileX < numTilesX then
         local tile = tiles[tileY][tileX]
-        if tile and tile.claimable and not tile.claimed then
-            tile.claimed = true
-            tile.claimedBy = player.color
-            player.claimedTiles = player.claimedTiles + 1
+        if tile and tile.claimable and not tile.claimed and player.wealth >= 1 then
+            -- Allow claim if it's the first claim or if the tile is adjacent to an already claimed tile by the player
+            if player.claimedTiles == 0 or isTileAdjacentToOwner(tileX, tileY, player.color) then
+                tile.claimed = true
+                tile.claimedBy = player.color
+                player.claimedTiles = player.claimedTiles + 1
+                player.wealth = player.wealth - 1
+            end
         end
     end
 end
