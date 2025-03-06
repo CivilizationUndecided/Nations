@@ -1,4 +1,4 @@
--- Simple Top-Down Game with Claimable Tiles
+-- main.lua
 
 -- Constants
 local TILE_SIZE = 50
