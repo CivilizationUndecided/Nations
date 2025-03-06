@@ -342,7 +342,8 @@ function getVisibleTileRange(camX, camY) {
 
 /* Tile Hover Update */
 function updateTileHoverStates(mouseX, mouseY) {
-  const [camX, camY] = getCameraOffset();
+  const camX = smoothedCamX;
+  const camY = smoothedCamY;
   const worldX = mouseX + camX;
   const worldY = mouseY + camY;
   const tileX = Math.floor(worldX / TILE_SIZE);
@@ -763,7 +764,8 @@ function handleJoiningStateClick(x, y) {
 }
 
 function handlePlayingStateClick(x, y) {
-  const [camX, camY] = getCameraOffset();
+  const camX = smoothedCamX;
+  const camY = smoothedCamY;
   const worldX = x + camX;
   const worldY = y + camY;
   const tileX = Math.floor(worldX / TILE_SIZE);
