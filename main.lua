@@ -19,6 +19,7 @@ local FONT_SIZE_TITLE = 32
 
 -- Game state
 local gameState = "joining"  -- "joining" or "playing"
+local actionMode = "claim"  -- new: 'claim' mode or 'erase' mode
 local windowWidth, windowHeight = love.graphics.getDimensions()
 local MAP_WIDTH = TILE_SIZE * 128
 local MAP_HEIGHT = TILE_SIZE * 128
@@ -126,17 +127,13 @@ function generateTilemap()
             local tileWidth = (x == numTilesX - 1) and (MAP_WIDTH - tileX) or TILE_SIZE
             local tileHeight = (y == numTilesY - 1) and (MAP_HEIGHT - tileY) or TILE_SIZE
             local tileType, color, claimable
-            if x == 0 or y == 0 or x == numTilesX - 1 or y == numTilesY - 1 then
+            local noiseValue = love.math.noise(x * noiseScale + offsetX, y * noiseScale + offsetY)
+            if noiseValue < 0.15 then
                 tileType = "water"
+            elseif noiseValue < 0.25 then
+                tileType = "sand"
             else
-                local noiseValue = love.math.noise(x * noiseScale + offsetX, y * noiseScale + offsetY)
-                if noiseValue < 0.3 then
-                    tileType = "water"
-                elseif noiseValue < 0.35 then
-                    tileType = "sand"
-                else
-                    tileType = "ground"
-                end
+                tileType = "ground"
             end
             
             if tileType == "water" then
@@ -513,27 +510,59 @@ function drawColorSelection()
 end
 
 function drawGameUI()
-    love.graphics.setColor(0, 0, 0, UI_BACKGROUND_OPACITY)
-    love.graphics.rectangle("fill", 0, 0, 300, 150)
-    love.graphics.setColor(1, 1, 1, UI_BORDER_OPACITY)
-    love.graphics.rectangle("line", 0, 0, 300, 150)
-    
     local padding = UI_PADDING
     local lineHeight = 30
-    local startY = padding
-    
     local instructions = {
         "Use WASD to move",
         "Click to claim tiles",
+        "Press Q for Claim mode",
+        "Press E for Erase mode",
         "Claimed tiles: " .. player.claimedTiles,
         "Press R to regenerate map"
     }
-    
+    local boxHeight = padding * 2 + (#instructions * lineHeight)
+    love.graphics.setColor(0, 0, 0, UI_BACKGROUND_OPACITY)
+    love.graphics.rectangle("fill", 0, 0, 300, boxHeight)
+    love.graphics.setColor(1, 1, 1, UI_BORDER_OPACITY)
+    love.graphics.rectangle("line", 0, 0, 300, boxHeight)
+    local startY = padding
     love.graphics.setFont(gameFonts.normal)
     for i, text in ipairs(instructions) do
         love.graphics.setColor(1, 1, 1)
         love.graphics.print(text, padding, startY + (i-1) * lineHeight, 0, 1)
     end
+end
+
+function drawMinimap()
+    local minimapSize = 200
+    local minimapMargin = 20
+    local minimapX = windowWidth - minimapSize - minimapMargin
+    local minimapY = windowHeight - minimapSize - minimapMargin
+    local scale = minimapSize / MAP_WIDTH
+    
+    -- Draw minimap background
+    love.graphics.setColor(0.1, 0.1, 0.1, 0.8)
+    love.graphics.rectangle("fill", minimapX, minimapY, minimapSize, minimapSize)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.rectangle("line", minimapX, minimapY, minimapSize, minimapSize)
+    
+    -- Draw tiles on minimap
+    for j = 0, numTilesY - 1 do
+        for i = 0, numTilesX - 1 do
+            local tile = tiles[j][i]
+            local col = tile.claimed and tile.claimedBy or tile.color
+            love.graphics.setColor(col)
+            love.graphics.rectangle("fill", minimapX + tile.x * scale, minimapY + tile.y * scale, tile.width * scale, tile.height * scale)
+        end
+    end
+    
+    -- Removed grid lines for easier readability
+    
+    -- Draw player marker as a circle for better visibility
+    love.graphics.setColor(1, 1, 1)
+    local playerCenterX = minimapX + (player.x + player.width/2) * scale
+    local playerCenterY = minimapY + (player.y + player.height/2) * scale
+    love.graphics.circle("fill", playerCenterX, playerCenterY, math.max(3, player.width * scale/2))
 end
 
 function love.draw()
@@ -614,8 +643,8 @@ function love.draw()
         love.graphics.setColor(1, 1, 1, 0.5)
         love.graphics.rectangle("line", player.x, player.y, player.width, player.height)
         love.graphics.setFont(gameFonts.small)
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.print(player.name, player.x, player.y - 20)
+        local nameWidth = gameFonts.small:getWidth(player.name)
+        love.graphics.print(player.name, player.x + (player.width - nameWidth)/2, player.y - 20)
     end
     
     love.graphics.pop()
@@ -632,27 +661,7 @@ function love.draw()
     local fpsText = "FPS: " .. love.timer.getFPS()
     love.graphics.print(fpsText, 10, love.graphics.getHeight() - gameFonts.small:getHeight() - 10)
     
-    local minimapSize = 200
-    local minimapMargin = 20
-    local minimapX = windowWidth - minimapSize - minimapMargin
-    local minimapY = windowHeight - minimapSize - minimapMargin
-    local scale = minimapSize / MAP_WIDTH
-    love.graphics.setColor(1, 1, 1, 0.3)
-    love.graphics.rectangle("fill", minimapX, minimapY, minimapSize, minimapSize)
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle("line", minimapX, minimapY, minimapSize, minimapSize)
-    
-    for j = 0, numTilesY - 1 do
-        for i = 0, numTilesX - 1 do
-            local tile = tiles[j][i]
-            local col = tile.claimed and tile.claimedBy or tile.color
-            love.graphics.setColor(col)
-            love.graphics.rectangle("fill", minimapX + tile.x * scale, minimapY + tile.y * scale, tile.width * scale, tile.height * scale)
-        end
-    end
-    
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle("fill", minimapX + player.x * scale, minimapY + player.y * scale, player.width * scale, player.height * scale)
+    drawMinimap()
 end
 
 function love.mousepressed(x, y, button)
@@ -733,12 +742,21 @@ function handlePlayingStateClick(x, y)
     
     if tileY >= 0 and tileY < numTilesY and tileX >= 0 and tileX < numTilesX then
         local tile = tiles[tileY][tileX]
-        if tile and tile.claimable and not tile.claimed and player.wealth >= 1 then
-            if player.claimedTiles == 0 or isTileAdjacentToOwner(tileX, tileY, player.color) then
-                tile.claimed = true
-                tile.claimedBy = player.color
-                player.claimedTiles = player.claimedTiles + 1
-                player.wealth = player.wealth - 1
+        if actionMode == "claim" then
+            if tile and tile.claimable and not tile.claimed and player.wealth >= 1 then
+                if player.claimedTiles == 0 or isTileAdjacentToOwner(tileX, tileY, player.color) then
+                    tile.claimed = true
+                    tile.claimedBy = player.color
+                    player.claimedTiles = player.claimedTiles + 1
+                    player.wealth = player.wealth - 1
+                end
+            end
+        elseif actionMode == "erase" then
+            if tile and tile.claimed and tile.claimedBy and tile.claimedBy[1] == player.color[1] and tile.claimedBy[2] == player.color[2] and tile.claimedBy[3] == player.color[3] then
+                tile.claimed = false
+                tile.claimedBy = nil
+                player.claimedTiles = math.max(0, player.claimedTiles - 1)
+                player.wealth = player.wealth + 1
             end
         end
     end
@@ -752,11 +770,19 @@ function love.textinput(t)
 end
 
 function love.keypressed(key)
+    if gameState == "playing" then
+        if key == "q" then
+            actionMode = "claim"
+        elseif key == "e" then
+            actionMode = "erase"
+        end
+    end
     if key == "escape" then
         love.event.quit()
     elseif key == "r" and gameState == "playing" then
         player.claimedTiles = 0
         generateTilemap()
+        ensurePlayerSpawnIsWalkable()
     elseif key:match("%d") and gameState == "joining" then
         local num = tonumber(key)
         if num >= 1 and num <= #playerColors then
@@ -782,3 +808,10 @@ function handleTextInputKey(key)
         textInput.active = false
     end
 end
+
+function love.mousemoved(x, y, dx, dy, istouch)
+    if gameState == "playing" and love.mouse.isDown(1) then
+        handlePlayingStateClick(x, y)
+    end
+end
+
