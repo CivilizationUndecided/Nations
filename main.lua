@@ -125,7 +125,6 @@ function generateTilemap()
             local tileY = y * TILE_SIZE
             local tileWidth = (x == numTilesX - 1) and (MAP_WIDTH - tileX) or TILE_SIZE
             local tileHeight = (y == numTilesY - 1) and (MAP_HEIGHT - tileY) or TILE_SIZE
-            
             local tileType, color, claimable
             if x == 0 or y == 0 or x == numTilesX - 1 or y == numTilesY - 1 then
                 tileType = "water"
@@ -133,26 +132,27 @@ function generateTilemap()
                 local noiseValue = love.math.noise(x * noiseScale + offsetX, y * noiseScale + offsetY)
                 if noiseValue < 0.3 then
                     tileType = "water"
-                elseif noiseValue < 0.5 then
-                    tileType = "ground"
-                elseif noiseValue < 0.7 then
-                    tileType = "hills"
+                elseif noiseValue < 0.35 then
+                    tileType = "sand"
                 else
-                    tileType = "mountains"
+                    tileType = "ground"
                 end
             end
             
             if tileType == "water" then
-                color = {0.0, 0.0, 1.0}
+                color = {0.0, 0.0, 1.0}  -- Water is blue
                 claimable = false
+            elseif tileType == "sand" then
+                color = {0.96, 0.87, 0.70}  -- Sand is a light yellowish color
+                claimable = true
             elseif tileType == "ground" then
-                color = {0.2, 0.5, 0.2}
+                color = {0.2, 0.5, 0.2}  -- Ground is green
                 claimable = true
             elseif tileType == "hills" then
-                color = {0.5, 0.4, 0.1}
+                color = {0.5, 0.4, 0.1}  -- Hills have a brownish hue
                 claimable = true
             elseif tileType == "mountains" then
-                color = {0.5, 0.5, 0.5}
+                color = {0.5, 0.5, 0.5}  -- Mountains are gray
                 claimable = true
             else
                 color = {0.4, 0.4, 0.4}
@@ -171,6 +171,19 @@ function generateTilemap()
                 hovered = false,
                 type = tileType
             }
+        end
+    end
+    
+    -- Additional pass: force sand on the sides of water for interior tiles
+    for y = 1, numTilesY - 2 do
+        for x = 1, numTilesX - 2 do
+            if tiles[y][x].type ~= "water" then
+                if tiles[y-1][x].type == "water" or tiles[y+1][x].type == "water" or tiles[y][x-1].type == "water" or tiles[y][x+1].type == "water" then
+                    tiles[y][x].type = "sand"
+                    tiles[y][x].color = {0.96, 0.87, 0.70}  -- Sand is a light yellowish color
+                    tiles[y][x].claimable = true
+                end
+            end
         end
     end
 end
