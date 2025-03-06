@@ -1,6 +1,6 @@
 function love.conf(t)
     t.identity = "tile-claim-game"        -- The name of the save directory
-    t.version = "11.4"                    -- The LÖVE version this game was made for
+    t.version = "11.5"                    -- The LÖVE version this game was made for
     t.console = false                     -- Enable the console (boolean)
     
     -- Only enable modules we're actually using
@@ -30,4 +30,11 @@ function love.conf(t)
     t.window.fullscreen = false           -- Not using fullscreen
     t.window.vsync = 1                    -- Enable vsync for smooth rendering
     t.window.highdpi = true               -- Enable high-dpi support
+    t.window.minwidth = 800              -- Minimum window width
+    t.window.minheight = 600             -- Minimum window height
+    t.window.depth = nil                  -- Default depth buffer
+    t.window.stencil = nil                -- Default stencil buffer
+    t.window.antialias = 0                -- No antialiasing
+    t.window.srgb = false                 -- No sRGB color space
+    t.window.fsaa = 0                     -- No fullscreen antialiasing
 end 

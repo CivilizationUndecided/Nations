@@ -30,15 +30,20 @@ A multiplayer territory control game built with LÖVE (Love2D) where players com
 
 ## Technical Details
 
-- Built with LÖVE 11.4
+- Built with LÖVE 11.5
 - Resolution: 1280x720 (resizable)
 - Minimum window size: 800x600
 - High DPI support enabled
 - Optimized for smooth performance
+- Uses modern LÖVE 11.5 features:
+  - Improved window management
+  - Enhanced graphics capabilities
+  - Better high DPI support
+  - Optimized performance
 
 ## Installation
 
-1. Install LÖVE 11.4 from [love2d.org](https://love2d.org/)
+1. Install LÖVE 11.5 from [love2d.org](https://love2d.org/)
 2. Clone or download this repository
 3. Run the game using LÖVE
 
