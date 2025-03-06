@@ -595,7 +595,7 @@ function drawMinimap() {
 }
 
 function drawGame() {
-  const camX = smoothedCamX, camY = smoothedCamY;
+  const camX = Math.floor(smoothedCamX), camY = Math.floor(smoothedCamY);
   ctx.save();
   ctx.translate(-camX, -camY);
   ctx.fillStyle = colorToString(baseplate.color);
