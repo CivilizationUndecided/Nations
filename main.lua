@@ -116,36 +116,58 @@ function love.load()
 end
 
 function generateTilemap()
-    -- Initialize random seed
-    math.randomseed(os.time())
+    -- Define noise scale for smooth transitions
+    local noiseScale = 0.1
     
-    -- Generate tiles
+    -- Generate tiles using noise for elevation, with map borders as water
     for y = 0, numTilesY - 1 do
         tiles[y] = {}
         for x = 0, numTilesX - 1 do
-            -- Random tile type with solid colors
-            local tileType = math.random()
-            local color
-            if tileType < 0.3 then
-                color = {0.2, 0.5, 0.2}  -- Solid grass
-            elseif tileType < 0.6 then
-                color = {0.5, 0.3, 0.1}  -- Solid dirt
-            else
-                color = {0.4, 0.4, 0.4}  -- Solid stone
-            end
-            
-            -- Calculate tile position and size
             local tileX = x * TILE_SIZE
             local tileY = y * TILE_SIZE
             local tileWidth = TILE_SIZE
             local tileHeight = TILE_SIZE
             
-            -- Adjust tiles on the right and bottom edges to fill the window
             if x == numTilesX - 1 then
                 tileWidth = MAP_WIDTH - tileX
             end
             if y == numTilesY - 1 then
                 tileHeight = MAP_HEIGHT - tileY
+            end
+            
+            local tileType, color, claimable
+            
+            -- Force border tiles to be water
+            if x == 0 or y == 0 or x == numTilesX - 1 or y == numTilesY - 1 then
+                tileType = "water"
+            else
+                local noiseValue = love.math.noise(x * noiseScale, y * noiseScale)
+                if noiseValue < 0.3 then
+                    tileType = "water"
+                elseif noiseValue < 0.5 then
+                    tileType = "ground"
+                elseif noiseValue < 0.7 then
+                    tileType = "hills"
+                else
+                    tileType = "mountains"
+                end
+            end
+            
+            if tileType == "water" then
+                color = {0.0, 0.0, 1.0}  -- Water is blue
+                claimable = false
+            elseif tileType == "ground" then
+                color = {0.2, 0.5, 0.2}  -- Ground is green
+                claimable = true
+            elseif tileType == "hills" then
+                color = {0.5, 0.4, 0.1}  -- Hills have a brownish hue
+                claimable = true
+            elseif tileType == "mountains" then
+                color = {0.5, 0.5, 0.5}  -- Mountains are gray
+                claimable = true
+            else
+                color = {0.4, 0.4, 0.4}
+                claimable = true
             end
             
             tiles[y][x] = {
@@ -155,7 +177,7 @@ function generateTilemap()
                 height = tileHeight,
                 color = color,
                 claimed = false,
-                claimable = true,
+                claimable = claimable,
                 claimedBy = nil,
                 hovered = false
             }
@@ -483,27 +505,70 @@ function drawGameUI()
 end
 
 function love.draw()
-    -- Calculate camera offset to center player in viewport
     local camX = math.max(0, math.min(player.x + player.width/2 - windowWidth/2, MAP_WIDTH - windowWidth))
     local camY = math.max(0, math.min(player.y + player.height/2 - windowHeight/2, MAP_HEIGHT - windowHeight))
 
     love.graphics.push()
     love.graphics.translate(-camX, -camY)
 
-    -- Clear the screen with a dark background
     love.graphics.clear(0.1, 0.1, 0.1)
-    
+
     -- Draw baseplate
     love.graphics.setColor(baseplate.color)
     love.graphics.rectangle("fill", baseplate.x, baseplate.y, baseplate.width, baseplate.height)
-    
-    -- Draw tiles
+
+    -- Layer 1: Draw base tiles
     for j = 0, numTilesY - 1 do
         for i = 0, numTilesX - 1 do
-            drawTile(tiles[j][i])
+            local tile = tiles[j][i]
+            love.graphics.setColor(tile.color)
+            love.graphics.rectangle("fill", tile.x, tile.y, tile.width, tile.height)
+            if not tile.claimed then
+                love.graphics.setColor(0.3, 0.3, 0.3)
+                love.graphics.rectangle("line", tile.x, tile.y, tile.width, tile.height)
+            end
         end
     end
-    
+
+    -- Layer 2: Draw claimed tile overlays and outlines
+    for j = 0, numTilesY - 1 do
+        for i = 0, numTilesX - 1 do
+            local tile = tiles[j][i]
+            if tile.claimed then
+                love.graphics.setColor(tile.claimedBy)
+                love.graphics.rectangle("fill", tile.x, tile.y, tile.width, tile.height)
+                
+                -- Draw outline if adjacent to an unclaimed tile
+                local tileX = math.floor(tile.x / TILE_SIZE)
+                local tileY = math.floor(tile.y / TILE_SIZE)
+                love.graphics.setColor(1, 1, 1, OUTLINE_OPACITY)
+                if tileY > 0 and not tiles[tileY-1][tileX].claimed then
+                    love.graphics.line(tile.x, tile.y, tile.x + tile.width, tile.y)
+                end
+                if tileY < numTilesY - 1 and not tiles[tileY+1][tileX].claimed then
+                    love.graphics.line(tile.x, tile.y + tile.height, tile.x + tile.width, tile.y + tile.height)
+                end
+                if tileX > 0 and not tiles[tileY][tileX-1].claimed then
+                    love.graphics.line(tile.x, tile.y, tile.x, tile.y + tile.height)
+                end
+                if tileX < numTilesX - 1 and not tiles[tileY][tileX+1].claimed then
+                    love.graphics.line(tile.x + tile.width, tile.y, tile.x + tile.width, tile.y + tile.height)
+                end
+            end
+        end
+    end
+
+    -- Layer 3: Draw hovering effect overlay
+    for j = 0, numTilesY - 1 do
+        for i = 0, numTilesX - 1 do
+            local tile = tiles[j][i]
+            if tile.hovered then
+                love.graphics.setColor(1, 1, 1, 0.7)
+                love.graphics.rectangle("line", tile.x, tile.y, tile.width, tile.height)
+            end
+        end
+    end
+
     -- Draw player if color is selected
     if player.color then
         love.graphics.setColor(player.color)
@@ -512,11 +577,12 @@ function love.draw()
         love.graphics.rectangle("line", player.x, player.y, player.width, player.height)
         love.graphics.setFont(gameFonts.small)
         love.graphics.setColor(1, 1, 1)
-        love.graphics.print(player.name, player.x, player.y - 20, 0, 1)
+        love.graphics.print(player.name, player.x, player.y - 20)
     end
-    
-    -- Draw UI based on game state (draw UI in screen space)
-    love.graphics.pop()  -- End camera transform
+
+    love.graphics.pop()
+
+    -- Draw UI in screen space
     if gameState == "joining" then
         drawColorSelection()
     else

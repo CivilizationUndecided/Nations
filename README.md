@@ -62,9 +62,6 @@ The game supports multiplayer through a client-server architecture:
 The game is structured with the following main components:
 - `main.lua`: Core game logic and rendering
 - `conf.lua`: LÖVE configuration settings
-- `network/`: Networking components
-  - `network.lua`: Network communication logic
-  - `sock.lua`: Network library
 
 ## License
 
