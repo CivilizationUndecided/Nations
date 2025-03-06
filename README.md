@@ -1,9 +1,10 @@
 # Nations
 
-A territory control game built with LÖVE (Love2D) where players compete to claim tiles and build their wealth.
+A multiplayer territory control game built with LÖVE (Love2D) where players compete to claim tiles and build their wealth.
 
 ## Features
 
+- **Multiplayer Support**: Host or join games with other players
 - **Territory Control**: Claim tiles to expand your territory
 - **Player Customization**: Choose your color and name
 - **Real-time Leaderboard**: Track your wealth and territory size
@@ -21,12 +22,21 @@ A territory control game built with LÖVE (Love2D) where players compete to clai
 
 ## Game Rules
 
-1. Choose your color and enter your name
-2. Move around the map using WASD
-3. Click on unclaimed tiles to claim them
-4. Each claimed tile adds to your wealth (100 points per tile)
-5. The player with the most wealth wins
-6. Press R to start a new game with a fresh map
+1. Choose to host or join a game
+2. Choose your color and enter your name
+3. Move around the map using WASD
+4. Click on unclaimed tiles to claim them
+5. Each claimed tile adds to your wealth (100 points per tile)
+6. The player with the most wealth wins
+7. Press R to start a new game with a fresh map
+
+## Multiplayer
+
+The game supports multiplayer through a client-server architecture:
+- One player hosts the game (server)
+- Other players can join as clients
+- All player movements and tile claims are synchronized
+- Real-time leaderboard updates for all players
 
 ## Technical Details
 
@@ -52,7 +62,9 @@ A territory control game built with LÖVE (Love2D) where players compete to clai
 The game is structured with the following main components:
 - `main.lua`: Core game logic and rendering
 - `conf.lua`: LÖVE configuration settings
-- `README.md`: This documentation
+- `network/`: Networking components
+  - `network.lua`: Network communication logic
+  - `sock.lua`: Network library
 
 ## License
 

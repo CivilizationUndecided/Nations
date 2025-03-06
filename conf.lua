@@ -23,7 +23,7 @@ function love.conf(t)
     t.modules.window = true               -- Required for window management
 
     -- Window settings
-    t.window.title = "Tile Claim Game"    -- The window title
+    t.window.title = "Nations Game"    -- The window title
     t.window.width = 1280                 -- The window width
     t.window.height = 720                 -- The window height
     t.window.resizable = false            -- Fixed window size
