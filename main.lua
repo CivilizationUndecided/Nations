@@ -79,7 +79,7 @@ local tiles = {}
 
 function love.load()
     -- Set the window title
-    love.window.setTitle("Top-Down Game")
+    love.window.setTitle("Nations")
     
     -- Enable high-quality text rendering with nearest neighbor filtering
     love.graphics.setDefaultFilter("nearest", "nearest")
@@ -453,6 +453,9 @@ function love.draw()
         -- Draw player border
         love.graphics.setColor(1, 1, 1, 0.5)
         love.graphics.rectangle("line", player.x, player.y, player.width, player.height)
+        -- Draw player name
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.print(player.name, player.x, player.y - 20, 0, 1)
     end
     
     -- Draw UI based on game state

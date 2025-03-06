@@ -1,6 +1,6 @@
-# Tile Claim Game
+# Nations
 
-A multiplayer territory control game built with LÖVE (Love2D) where players compete to claim tiles and build their wealth.
+A territory control game built with LÖVE (Love2D) where players compete to claim tiles and build their wealth.
 
 ## Features
 
@@ -21,7 +21,7 @@ A multiplayer territory control game built with LÖVE (Love2D) where players com
 
 ## Game Rules
 
-1. Choose your color and enter your name at the start
+1. Choose your color and enter your name
 2. Move around the map using WASD
 3. Click on unclaimed tiles to claim them
 4. Each claimed tile adds to your wealth (100 points per tile)
