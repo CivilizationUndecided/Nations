@@ -797,6 +797,7 @@ function handleJoiningStateClick(x, y) {
       y >= buttonY && y <= buttonY + buttonHeight) {
     gameState = "playing";
     ensurePlayerSpawnIsWalkable();
+    updateNetwork();
   }
 }
 
@@ -909,6 +910,8 @@ let dtGlobal = 0;
 // Multiplayer Setup
 const socket = io();
 const remotePlayers = {};
+let lastEmittedPlayer = null;
+let lastNetworkUpdateTime = Date.now();
 
 socket.on('currentPlayers', (playersData) => {
     for (let id in playersData) {
@@ -954,14 +957,6 @@ function gameLoop(timestamp) {
       player.wealthAccumulator -= add;
     }
     updateLeaderboard();
-    socket.emit('playerMovement', {
-      x: player.x,
-      y: player.y,
-      name: player.name,
-      color: player.color,
-      claimedTiles: player.claimedTiles,
-      wealth: player.wealth
-    });
   }
   ctx.clearRect(0, 0, windowWidth, windowHeight);
   ctx.lineWidth = 1;  // Reset lineWidth to default
@@ -986,3 +981,43 @@ window.addEventListener("resize", () => {
 /* Initialization */
 generateTilemap();
 ensurePlayerSpawnIsWalkable();
+
+/* Modify the updateNetwork function */
+function updateNetwork() {
+  if (gameState !== "playing") return;
+  const now = Date.now();
+  if (lastEmittedPlayer === null) {
+    socket.emit('playerMovement', {
+      x: player.x,
+      y: player.y,
+      name: player.name,
+      color: player.color,
+      claimedTiles: player.claimedTiles,
+      wealth: player.wealth
+    });
+    lastEmittedPlayer = { x: player.x, y: player.y, claimedTiles: player.claimedTiles, wealth: player.wealth, name: player.name, color: player.color };
+    lastNetworkUpdateTime = now;
+    return;
+  }
+  const positionChanged = Math.abs(player.x - lastEmittedPlayer.x) > 2 || Math.abs(player.y - lastEmittedPlayer.y) > 2;
+  const claimedTilesChanged = player.claimedTiles !== lastEmittedPlayer.claimedTiles;
+  const wealthChanged = player.wealth !== lastEmittedPlayer.wealth;
+  const nameChanged = player.name !== lastEmittedPlayer.name;
+  const colorChanged = !colorsEqual(player.color, lastEmittedPlayer.color);
+  const dirty = positionChanged || claimedTilesChanged || wealthChanged || nameChanged || colorChanged;
+  // Send update if state changed or if more than 1 second has passed since last update (heartbeat)
+  if (dirty || (now - lastNetworkUpdateTime > 1000)) {
+    socket.emit('playerMovement', {
+      x: player.x,
+      y: player.y,
+      name: player.name,
+      color: player.color,
+      claimedTiles: player.claimedTiles,
+      wealth: player.wealth
+    });
+    lastEmittedPlayer = { x: player.x, y: player.y, claimedTiles: player.claimedTiles, wealth: player.wealth, name: player.name, color: player.color };
+    lastNetworkUpdateTime = now;
+  }
+}
+
+setInterval(updateNetwork, 100);
