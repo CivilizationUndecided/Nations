@@ -87,7 +87,7 @@ let player = {
   color: null,
   colorIndex: null,
   claimedTiles: 0,
-  name: "Guest",
+  name: "Player",
   wealth: 25,
   wealthAccumulator: 0
 };
