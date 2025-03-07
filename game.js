@@ -551,8 +551,7 @@ function drawGameUI() {
     "Click to claim tiles",
     "Press Q for Claim mode",
     "Press E for Erase mode",
-    "Claimed tiles: " + player.claimedTiles,
-    "Press R to regenerate map"
+    "Claimed tiles: " + player.claimedTiles
   ];
   const boxHeight = padding * 2 + (instructions.length * lineHeight);
   ctx.fillStyle = "rgba(0,0,0," + UI_BACKGROUND_OPACITY + ")";
@@ -593,6 +592,17 @@ function drawMinimap() {
   ctx.beginPath();
   ctx.arc(playerCenterX, playerCenterY, Math.max(3, player.width * scale/2), 0, 2 * Math.PI);
   ctx.fill();
+
+  // Added: Draw remote players on the minimap
+  for (let id in remotePlayers) {
+    const rp = remotePlayers[id];
+    const rpCenterX = minimapX + (rp.x + player.width/2) * scale;
+    const rpCenterY = minimapY + (rp.y + player.height/2) * scale;
+    ctx.fillStyle = colorToString(rp.color);
+    ctx.beginPath();
+    ctx.arc(rpCenterX, rpCenterY, Math.max(3, player.width * scale/2), 0, 2 * Math.PI);
+    ctx.fill();
+  }
 }
 
 function drawGame() {
@@ -697,25 +707,29 @@ function drawGame() {
 
 /* Leaderboard Update */
 function updateLeaderboard() {
-  let found = false;
-  for (let i = 0; i < leaderboard.entries.length; i++) {
-    const entry = leaderboard.entries[i];
-    if (entry.name === player.name) {
-      entry.score = player.claimedTiles;
-      entry.wealth = player.wealth;
-      entry.color = player.color;
-      found = true;
-      break;
-    }
-  }
-  if (!found) {
+  // Reset leaderboard entries
+  leaderboard.entries = [];
+  
+  // Add the local player's info
+  leaderboard.entries.push({
+    name: player.name,
+    score: player.claimedTiles,
+    wealth: player.wealth,
+    color: player.color
+  });
+  
+  // Add remote players' info
+  for (let id in remotePlayers) {
+    const p = remotePlayers[id];
     leaderboard.entries.push({
-      name: player.name,
-      score: player.claimedTiles,
-      wealth: player.wealth,
-      color: player.color
+      name: p.name,
+      score: p.claimedTiles,
+      wealth: p.wealth,
+      color: p.color
     });
   }
+  
+  // Sort the leaderboard by wealth descending
   leaderboard.entries.sort((a, b) => (b.wealth || 0) - (a.wealth || 0));
 }
 
@@ -841,11 +855,6 @@ function handleKeyDown(e) {
       actionMode = "claim";
     } else if (e.key === "e") {
       actionMode = "erase";
-    } else if (e.key === "r") {
-      player.claimedTiles = 0;
-      generateTilemap();
-      ensurePlayerSpawnIsWalkable();
-      socket.emit('mapUpdate', { tiles: tiles });
     }
   }
   if (gameState === "joining") {
