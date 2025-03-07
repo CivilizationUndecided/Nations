@@ -20,8 +20,8 @@ let actionMode = "claim"; // "claim" or "erase"
 let windowWidth = window.innerWidth;
 let windowHeight = window.innerHeight;
 
-const MAP_WIDTH = TILE_SIZE * 128;
-const MAP_HEIGHT = TILE_SIZE * 128;
+const MAP_WIDTH = TILE_SIZE * 64;
+const MAP_HEIGHT = TILE_SIZE * 64;
 const numTilesX = Math.ceil(MAP_WIDTH / TILE_SIZE);
 const numTilesY = Math.ceil(MAP_HEIGHT / TILE_SIZE);
 
@@ -668,6 +668,17 @@ function drawGame() {
     const nameWidth = ctx.measureText(player.name).width;
     ctx.fillText(player.name, player.x + (player.width - nameWidth)/2, player.y - 20);
   }
+  // Draw remote players
+  for (let id in remotePlayers) {
+      const p = remotePlayers[id];
+      ctx.fillStyle = colorToString(p.color);
+      ctx.fillRect(p.x, p.y, player.width, player.height);
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
+      ctx.strokeRect(p.x, p.y, player.width, player.height);
+      const remoteNameWidth = ctx.measureText(p.name).width;
+      ctx.fillStyle = "white";
+      ctx.fillText(p.name, p.x + (player.width - remoteNameWidth)/2, p.y - 20);
+  }
   ctx.restore();
 
   if (gameState === "joining") {
@@ -779,6 +790,12 @@ function handlePlayingStateClick(x, y) {
           tile.claimedBy = player.color;
           player.claimedTiles++;
           player.wealth -= 1;
+          socket.emit('tileUpdate', {
+            tileX: tileX,
+            tileY: tileY,
+            claimed: tile.claimed,
+            claimedBy: tile.claimedBy
+          });
         }
       }
     } else if (actionMode === "erase") {
@@ -787,6 +804,12 @@ function handlePlayingStateClick(x, y) {
         tile.claimedBy = null;
         player.claimedTiles = Math.max(0, player.claimedTiles - 1);
         player.wealth += 1;
+        socket.emit('tileUpdate', {
+          tileX: tileX,
+          tileY: tileY,
+          claimed: tile.claimed,
+          claimedBy: tile.claimedBy
+        });
       }
     }
   }
@@ -822,6 +845,7 @@ function handleKeyDown(e) {
       player.claimedTiles = 0;
       generateTilemap();
       ensurePlayerSpawnIsWalkable();
+      socket.emit('mapUpdate', { tiles: tiles });
     }
   }
   if (gameState === "joining") {
@@ -859,6 +883,40 @@ function handleKeyDown(e) {
 let lastTime = performance.now();
 let fps = 60;
 let dtGlobal = 0;
+// Multiplayer Setup
+const socket = io();
+const remotePlayers = {};
+
+socket.on('currentPlayers', (playersData) => {
+    for (let id in playersData) {
+        if (id !== socket.id) {
+            remotePlayers[id] = playersData[id];
+        }
+    }
+});
+
+socket.on('newPlayer', (data) => {
+    remotePlayers[data.playerId] = data.playerData;
+});
+
+socket.on('playerMoved', (data) => {
+    remotePlayers[data.playerId] = data.playerData;
+});
+
+socket.on('playerDisconnected', (data) => {
+    delete remotePlayers[data.playerId];
+});
+
+socket.on('tileUpdate', (data) => {
+    if (tiles[data.tileY] && tiles[data.tileY][data.tileX]) {
+        tiles[data.tileY][data.tileX].claimed = data.claimed;
+        tiles[data.tileY][data.tileX].claimedBy = data.claimedBy;
+    }
+});
+
+socket.on('mapUpdate', (data) => {
+    tiles = data.tiles;
+});
 
 function gameLoop(timestamp) {
   const dt = (timestamp - lastTime) / 1000;
@@ -873,6 +931,14 @@ function gameLoop(timestamp) {
       player.wealthAccumulator -= add;
     }
     updateLeaderboard();
+    socket.emit('playerMovement', {
+      x: player.x,
+      y: player.y,
+      name: player.name,
+      color: player.color,
+      claimedTiles: player.claimedTiles,
+      wealth: player.wealth
+    });
   }
   ctx.clearRect(0, 0, windowWidth, windowHeight);
   ctx.lineWidth = 1;  // Reset lineWidth to default
