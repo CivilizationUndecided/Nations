@@ -1,6 +1,6 @@
 # Nations
 
-A multiplayer territory control game built with LÖVE (Love2D) where players compete to claim tiles and build their wealth.
+A multiplayer territory control game built with HTML5, JavaScript, And NodeJS where players compete to claim tiles and build their wealth.
 
 ## Features
 
@@ -16,7 +16,6 @@ A multiplayer territory control game built with LÖVE (Love2D) where players com
 
 - **WASD**: Move your player
 - **Left Click**: Claim tiles
-- **R**: Regenerate the map
 - **ESC**: Quit game
 
 ## Game Rules
@@ -25,34 +24,16 @@ A multiplayer territory control game built with LÖVE (Love2D) where players com
 2. Choose your color and enter your name
 3. Move around the map using WASD
 4. Click on unclaimed tiles to claim them
-5. Each claimed tile adds to your wealth (100 points per tile)
-6. The player with the most wealth wins
-7. Press R to start a new game with a fresh map
 
 ## Technical Details
 
-- Built with LÖVE 11.5
-- Resolution: 1280x720 (resizable)
-- Minimum window size: 800x600
-- High DPI support enabled
-- Optimized for smooth performance
-- Uses modern LÖVE 11.5 features:
-  - Improved window management
-  - Enhanced graphics capabilities
-  - Better high DPI support
-  - Optimized performance
-
 ## Installation
 
-1. Install LÖVE 11.5 from [love2d.org](https://love2d.org/)
-2. Clone or download this repository
-3. Run the game using LÖVE
+Todo
 
 ## Development
 
-The game is structured with the following main components:
-- `main.lua`: Core game logic and rendering
-- `conf.lua`: LÖVE configuration settings
+Todo
 
 ## License
 
