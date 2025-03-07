@@ -54,6 +54,16 @@ function colorsEqual(c1, c2) {
   return Math.abs(c1[0] - c2[0]) < 0.01 && Math.abs(c1[1] - c2[1]) < 0.01 && Math.abs(c1[2] - c2[2]) < 0.01;
 }
 
+function isColorAvailable(color) {
+  if (typeof remotePlayers === 'undefined') return true;
+  for (let id in remotePlayers) {
+    if (colorsEqual(remotePlayers[id].color, color)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function fract(x) { return x - Math.floor(x); }
 
 /* Global Variables for Game Objects */
@@ -771,8 +781,10 @@ function handleJoiningStateClick(x, y) {
   for (let i = 0; i < playerColors.length; i++) {
     if (x >= startX + i * (paletteSize + paletteSpacing) && x <= startX + i * (paletteSize + paletteSpacing) + paletteSize &&
         y >= startY && y <= startY + paletteSize) {
-      player.colorIndex = i + 1;
-      player.color = playerColors[i].color;
+      if (isColorAvailable(playerColors[i].color)) {
+        player.colorIndex = i + 1;
+        player.color = playerColors[i].color;
+      }
     }
   }
 
@@ -861,8 +873,10 @@ function handleKeyDown(e) {
     if (/^[1-9]$/.test(e.key)) {
       const num = parseInt(e.key);
       if (num >= 1 && num <= playerColors.length) {
-        player.colorIndex = num;
-        player.color = playerColors[num - 1].color;
+        if (isColorAvailable(playerColors[num - 1].color)) {
+          player.colorIndex = num;
+          player.color = playerColors[num - 1].color;
+        }
       }
     }
     if (textInput.active) {
